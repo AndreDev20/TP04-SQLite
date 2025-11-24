@@ -8,8 +8,6 @@ import java.util.List;
 
 public class TelaConsulta extends JFrame implements ActionListener {
 
-    // --- 1. CLASSE INTERNA PARA ARMAZENAMENTO DE DADOS (Funcionario) ---
-    // Usada para armazenar os resultados da consulta em memória (solução para o SQLite)
     private static class Funcionario {
         String nome;
         double salario;
@@ -22,16 +20,14 @@ public class TelaConsulta extends JFrame implements ActionListener {
         }
     }
 
-    // --- 2. VARIÁVEIS DE ESTADO E COMPONENTES ---
     private JTextField txtPesquisa, txtNome, txtSalario, txtCargo;
     private JButton btnPesquisar, btnAnterior, btnProximo;
 
     private Connection con;
     private PreparedStatement pst;
 
-    // NOVOS OBJETOS PARA NAVEGAÇÃO EM MEMÓRIA
     private List<Funcionario> listaResultados = new ArrayList<>();
-    private int indiceAtual = -1; // Índice atual na lista
+    private int indiceAtual = -1; 
 
     private DecimalFormat moneyFormat = new DecimalFormat("0.00");
 
@@ -39,19 +35,16 @@ public class TelaConsulta extends JFrame implements ActionListener {
         super("TRABALHO PRATICO 04");
         montarInterface();
         abrirConexao();
-        // Inicializa a estrutura do banco após a conexão ser estabelecida
         if (con != null) {
             inicializarBanco();
         }
         configurarFrame();
     }
 
-    // --- 3. MÉTODOS DE CONFIGURAÇÃO E INICIALIZAÇÃO ---
 
     private void montarInterface() {
         setLayout(null);
 
-        // Painel Superior (Pesquisa)
         JLabel lblNomePesquisa = new JLabel("Nome:");
         lblNomePesquisa.setBounds(10, 20, 50, 25);
         add(lblNomePesquisa);
@@ -65,12 +58,10 @@ public class TelaConsulta extends JFrame implements ActionListener {
         btnPesquisar.addActionListener(this);
         add(btnPesquisar);
 
-        // Separador visual
         JSeparator separator = new JSeparator(SwingConstants.HORIZONTAL);
         separator.setBounds(5, 60, 385, 5);
         add(separator);
 
-        // Painel de Dados
         int y_start = 75;
 
         addLabelAndField(this, "Nome:", 10, y_start, 60, txtNome = new JTextField(20));
@@ -81,7 +72,6 @@ public class TelaConsulta extends JFrame implements ActionListener {
         txtSalario.setEditable(false);
         txtCargo.setEditable(false);
 
-        // Painel de Navegação
         btnAnterior = new JButton("Anterior");
         btnAnterior.setBounds(100, y_start + 140, 90, 30);
         btnAnterior.addActionListener(this);
@@ -113,7 +103,6 @@ public class TelaConsulta extends JFrame implements ActionListener {
     }
 
     private void abrirConexao() {
-        // Usa a classe Conexao.java (externa)
         con = Conexao.getConexao();
         if (con == null) {
             JOptionPane.showMessageDialog(this, "Falha ao conectar ao banco de dados.", "Erro de Conexão", JOptionPane.ERROR_MESSAGE);
@@ -121,9 +110,7 @@ public class TelaConsulta extends JFrame implements ActionListener {
         }
     }
 
-    // Método que cria as tabelas e insere dados iniciais no SQLite, se necessário.
     private void inicializarBanco() {
-        // SQLs para criação de tabelas
         String sqlCreateCargos = "CREATE TABLE IF NOT EXISTS tbcargos ("
                 + "cd_cargo INTEGER PRIMARY KEY,"
                 + "ds_cargo TEXT NOT NULL"
@@ -137,7 +124,6 @@ public class TelaConsulta extends JFrame implements ActionListener {
                 + "FOREIGN KEY (cod_cargo) REFERENCES tbcargos(cd_cargo)"
                 + ");";
 
-        // SQL para verificar se a tabela de cargos está vazia
         String sqlCheckCargos = "SELECT COUNT(*) FROM tbcargos";
 
         try (Statement stmt = con.createStatement()) {
@@ -172,10 +158,7 @@ public class TelaConsulta extends JFrame implements ActionListener {
         txtCargo.setText("");
     }
 
-    // --- 4. LÓGICA DE EXIBIÇÃO E NAVEGAÇÃO (Em Memória) ---
-
     private void exibirDados() {
-        // Exibe o registro da lista correspondente ao índice atual
         if (indiceAtual >= 0 && indiceAtual < listaResultados.size()) {
             Funcionario func = listaResultados.get(indiceAtual);
             txtNome.setText(func.nome);
@@ -191,10 +174,8 @@ public class TelaConsulta extends JFrame implements ActionListener {
     private void atualizarBotoes() {
         boolean temResultados = !listaResultados.isEmpty();
 
-        // Habilita Anterior se não for o primeiro (índice > 0)
         btnAnterior.setEnabled(temResultados && indiceAtual > 0);
 
-        // Habilita Próximo se não for o último (índice menor que o tamanho - 1)
         btnProximo.setEnabled(temResultados && indiceAtual < listaResultados.size() - 1);
     }
 
@@ -209,13 +190,11 @@ public class TelaConsulta extends JFrame implements ActionListener {
         }
     }
 
-    // Implementa a lógica do botão Pesquisar (SELECT + LIKE)
     private void pesquisar() {
         limparCampos();
-        listaResultados = new ArrayList<>(); // Reseta a lista
-        indiceAtual = -1; // Reseta o índice
+        listaResultados = new ArrayList<>(); 
+        indiceAtual = -1;
 
-        // SQL para SELECT (JOIN) e busca (LIKE)
         String sql = "SELECT f.nome_func, f.sal_func, c.ds_cargo " +
                 "FROM tbfuncs f JOIN tbcargos c ON f.cod_cargo = c.cd_cargo " +
                 "WHERE f.nome_func LIKE ? " +
@@ -224,7 +203,6 @@ public class TelaConsulta extends JFrame implements ActionListener {
         try {
             if (pst != null) pst.close();
 
-            // Usa a versão padrão, que é TYPE_FORWARD_ONLY (correto para SQLite)
             pst = con.prepareStatement(sql);
 
             String termo = "%" + txtPesquisa.getText().trim() + "%";
@@ -232,16 +210,14 @@ public class TelaConsulta extends JFrame implements ActionListener {
 
             ResultSet rs = pst.executeQuery();
 
-            // ** Lê TODOS os resultados do ResultSet e armazena na lista Funcionario **
             while (rs.next()) {
                 String nome = rs.getString("nome_func");
                 double salario = rs.getDouble("sal_func");
                 String cargo = rs.getString("ds_cargo");
                 listaResultados.add(new Funcionario(nome, salario, cargo));
             }
-            rs.close(); // Fecha o ResultSet
+            rs.close(); 
 
-            // Posiciona no primeiro registro e exibe
             if (!listaResultados.isEmpty()) {
                 indiceAtual = 0;
                 exibirDados();
@@ -258,15 +234,12 @@ public class TelaConsulta extends JFrame implements ActionListener {
         }
     }
 
-    // Implementa a lógica do botão Próximo (avançando no índice da lista)
     private void navegarProximo() {
         if (indiceAtual < listaResultados.size() - 1) {
             indiceAtual++;
             exibirDados();
 
 
-
-    // Implementa a lógica do botão Anterior (retrocedendo no índice da lista)
     private void navegarAnterior() {
         if (indiceAtual > 0) {
             indiceAtual--;
@@ -278,7 +251,6 @@ public class TelaConsulta extends JFrame implements ActionListener {
         SwingUtilities.invokeLater(() -> new TelaConsulta());
     }
 
-    // Garante que a conexão seja fechada ao sair do frame
     @Override
     public void dispose() {
         super.dispose();
@@ -286,7 +258,7 @@ public class TelaConsulta extends JFrame implements ActionListener {
         try {
             if (pst != null) pst.close();
         } catch (SQLException e) {
-            // Ignora erros ao fechar
         }
     }
+
 }
